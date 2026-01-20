@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>National Portal Official Launch</title>
+    <style>
+        :root {
+            --bg-dark: #020611;
+            --accent-blue: #00d2ff;
+            --accent-green: #00ffcc;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: var(--bg-dark);
+            font-family: 'Segoe UI', system-ui, sans-serif; color: white;
+            touch-action: none;
+        }
+
+        #canvas-dots {
+            position: fixed; inset: 0; z-index: 1; opacity: 0.4;
+        }
+
+        .screen {
+            position: absolute; inset: 0; z-index: 10;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transform: scale(1.1);
+            transition: all 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .screen.active { opacity: 1; visibility: visible; transform: scale(1); }
+
+        .official-title {
+            font-size: 3.5rem; font-weight: 800; letter-spacing: 8px;
+            text-transform: uppercase; margin-bottom: 50px; text-align: center;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .glass-panel {
+            background: var(--glass); backdrop-filter: blur(20px);
+            border: 1px solid var(--border); padding: 60px; border-radius: 40px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5); text-align: center;
+        }
+
+        .input-group {
+            border-bottom: 2px solid var(--accent-blue); margin-bottom: 30px;
+            padding: 10px; width: 450px;
+        }
+
+        input {
+            background: transparent; border: none; outline: none;
+            color: white; font-size: 2.5rem; text-align: center;
+            width: 100%; letter-spacing: 10px; text-transform: uppercase;
+        }
+
+        .btn-initiate {
+            background: transparent; border: 1px solid var(--accent-blue);
+            color: var(--accent-blue); padding: 15px 50px; border-radius: 50px;
+            font-size: 1.2rem; cursor: pointer; transition: 0.3s;
+            letter-spacing: 2px;
+        }
+
+        .btn-initiate:hover { background: rgba(0, 210, 255, 0.1); }
+        .btn-initiate:active { background: var(--accent-blue); color: black; }
+
+        .face-scanner-container {
+            position: relative; width: 350px; height: 350px;
+            border: 2px solid var(--border); border-radius: 50%;
+            background: black;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; transition: border-color 0.5s;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.2);
+        }
+
+        #webcam {
+            position: absolute; width: 100%; height: 100%;
+            object-fit: cover; transform: scaleX(-1);
+            opacity: 0.7; transition: opacity 0.5s;
+        }
+
+        .face-hud {
+            width: 100%; height: 100%; position: absolute;
+            z-index: 20; pointer-events: none;
+        }
+
+        #scan-line {
+            position: absolute; width: 100%; height: 3px;
+            background: var(--accent-green); 
+            box-shadow: 0 0 25px var(--accent-green), 0 0 10px var(--accent-green);
+            top: 0; display: none; z-index: 25;
+        }
+
+        .scanning #scan-line { display: block; animation: scanMove 2.5s infinite ease-in-out; }
+
+        @keyframes scanMove {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        .scanning #webcam { opacity: 1; filter: brightness(1.1); }
+        .finished .face-scanner-container { border-color: var(--accent-green); box-shadow: 0 0 50px var(--accent-green); }
+
+        .granted-msg {
+            font-size: 5rem; font-weight: 900; color: var(--accent-green);
+            letter-spacing: 15px; text-shadow: 0 0 50px rgba(0, 255, 204, 0.4);
+            text-align: center;
+        }
+
+        #error { color: #ff4b2b; height: 20px; margin-bottom: 10px; opacity: 0; transition: 0.3s; }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas-dots"></canvas>
+
+<div id="scr-search" class="screen active">
+    <h1 class="official-title">GOOGLE</h1>
+    <div class="glass-panel">
+        <div class="input-group">
+            <input type="text" id="passkey" placeholder="Site URL" spellcheck="false" autofocus>
+        </div>
+        <div id="error">ACCESS DENIED</div>
+        <button class="btn-initiate" onclick="startProtocol()">SEARCH</button>
+    </div>
+</div>
+
+<div id="scr-bio" class="screen">
+    <div class="face-scanner-container" id="scanner">
+        <video id="webcam" autoplay playsinline></video>
+        <div id="scan-line"></div>
+        <div class="face-hud">
+            <svg width="100%" height="100%" viewBox="0 0 100 100" style="fill:none; stroke:var(--accent-blue); stroke-width:0.5; opacity:0.5;">
+                <circle cx="50" cy="50" r="48" stroke-dasharray="2,2"/>
+                <path d="M30 40 Q50 35 70 40" /> 
+                <path d="M50 30 L50 70" stroke-width="0.2"/>
+            </svg>
+        </div>
+    </div>
+    <p id="status" style="margin-top: 40px; font-size: 1.2rem; letter-spacing: 4px; color: var(--accent-blue);">POSITION FACE & HOLD TO SCAN</p>
+</div>
+
+<div id="scr-granted" class="screen">
+    <h1 class="granted-msg">IDENTITY CONFIRMED</h1>
+</div>
+
+<div id="scr-video" class="screen" style="background: black;">
+    <video id="launch-video" playsinline style="width:100vw; height:100vh; object-fit:cover;">
+        <source src="launch.mp4_1.mp4" type="video/mp4">
+    </video>
+</div>
+
+<script>
+    const sndScan = new Audio('Sound 01.mp3');
+    const sndSuccess = new Audio('Access Granted.mp3');
+    sndScan.loop = true;
+
+    let localStream = null;
+
+    document.getElementById('passkey').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') startProtocol();
+    });
+
+    async function initCamera() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const video = document.getElementById('webcam');
+            video.srcObject = localStream;
+        } catch (err) {
+            alert("Camera access is required for facial recognition.");
+        }
+    }
+
+    function startProtocol() {
+        const val = document.getElementById('passkey').value.toLowerCase();
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+        
+        if (val === 'slada') {
+            initCamera(); 
+            showScreen('scr-bio');
+        } else {
+            const err = document.getElementById('error');
+            err.style.opacity = 1;
+            setTimeout(() => err.style.opacity = 0, 2000);
+        }
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    const scanner = document.getElementById('scanner');
+    let holdTimer, progress = 0;
+
+    const startHold = (e) => {
+        if(scanner.classList.contains('finished')) return;
+        scanner.classList.add('scanning');
+        sndScan.play().catch(()=>{});
+
+        holdTimer = setInterval(() => {
+            progress += 1; 
+            document.getElementById('status').innerText = `BIOMETRIC ANALYSIS: ${progress}%`;
+            document.getElementById('status').style.color = "var(--accent-green)";
+            if (progress >= 100) {
+                clearInterval(holdTimer);
+                completeScan();
+            }
+        }, 40); 
+    };
+
+    const endHold = () => {
+        if(progress < 100) {
+            clearInterval(holdTimer);
+            progress = 0;
+            scanner.classList.remove('scanning');
+            sndScan.pause();
+            document.getElementById('status').innerText = 'POSITION FACE & HOLD TO SCAN';
+            document.getElementById('status').style.color = "var(--accent-blue)";
+        }
+    };
+
+    function completeScan() {
+        // --- STOP CAMERA HARDWARE ---
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        sndScan.pause();
+        sndSuccess.play().catch(()=>{}); 
+        
+        scanner.classList.add('finished');
+        document.getElementById('status').innerText = 'ACCESS GRANTED';
+
+        setTimeout(() => {
+            showScreen('scr-granted');
+            setTimeout(() => {
+                showScreen('scr-video');
+                document.getElementById('launch-video').play();
+            }, 2000);
+        }, 1200);
+    }
+
+    scanner.addEventListener('mousedown', startHold);
+    scanner.addEventListener('mouseup', endHold);
+    scanner.addEventListener('touchstart', startHold);
+    scanner.addEventListener('touchend', endHold);
+
+    // Particle background logic
+    const canvas = document.getElementById('canvas-dots');
+    const ctx = canvas.getContext('2d');
+    let pts = [];
+    function init() {
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        pts = Array.from({length: 60}, () => ({
+            x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+            v: Math.random()*0.5 + 0.2
+        }));
+    }
+    function anim() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "#00d2ff";
+        pts.forEach(p => {
+            p.y -= p.v; if(p.y < 0) p.y = canvas.height;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, Math.PI*2); ctx.fill();
+        });
+        requestAnimationFrame(anim);
+    }
+    window.addEventListener('resize', init);
+    init(); anim();
+</script>
+</body>
+</html>
